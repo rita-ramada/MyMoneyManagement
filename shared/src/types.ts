@@ -62,3 +62,6 @@ export interface HoldingContribution {
 }
 
 export interface HoldingValuation { id: number; holdingId: number; date: string; valueCents: number }
+
+export interface ParsedRow { line: number; date: string; description: string; amountCents: number }
+export interface RowError { line: number; raw: string; reason: string }

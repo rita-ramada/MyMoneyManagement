@@ -1,4 +1,4 @@
-import type { CategoryKind } from '@mmm/shared/src/types';
+import type { Account, CategoryKind } from '@mmm/shared/src/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { api } from '../api';
@@ -13,9 +13,34 @@ export function ErrorText({ error }: { error: unknown }) {
   return error ? <p className="error" role="alert">{(error as Error).message}</p> : null;
 }
 
+function EditAccount({ account, onDone }: { account: Account; onDone: () => void }) {
+  const invalidate = useInvalidate();
+  const [name, setName] = useState(account.name);
+  const [balance, setBalance] = useState((account.openingBalanceCents / 100).toFixed(2).replace('.', ','));
+  const [date, setDate] = useState(account.openingBalanceDate);
+  const cents = parseEurosToCents(balance);
+  const save = useMutation({
+    mutationFn: () => api.updateAccount(account.id, {
+      name: name.trim(), bankProfileId: account.bankProfileId, openingBalanceCents: cents!, openingBalanceDate: date,
+    }),
+    onSuccess: () => { invalidate('accounts', 'netWorth'); onDone(); },
+  });
+  return (
+    <form className="row" onSubmit={(e) => { e.preventDefault(); if (name.trim() && cents !== null) save.mutate(); }}>
+      <label>Name<input aria-label="Edit account name" value={name} onChange={(e) => setName(e.target.value)} /></label>
+      <label>Opening balance (€)<input aria-label="Edit opening balance (€)" inputMode="decimal" value={balance} onChange={(e) => setBalance(e.target.value)} /></label>
+      <label>On<input aria-label="Edit opening balance date" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+      <button type="submit" disabled={!name.trim() || cents === null || save.isPending}>Save account</button>
+      <button type="button" onClick={onDone}>Cancel</button>
+      <ErrorText error={save.error} />
+    </form>
+  );
+}
+
 function Accounts() {
   const invalidate = useInvalidate();
   const accounts = useQuery({ queryKey: ['accounts'], queryFn: api.listAccounts });
+  const [editing, setEditing] = useState<number | null>(null);
   const [name, setName] = useState('');
   const [balance, setBalance] = useState('');
   const [date, setDate] = useState(todayIso());
@@ -34,7 +59,14 @@ function Accounts() {
       <h2>Accounts</h2>
       <ul className="list">
         {accounts.data?.map((a) => (
-          <li key={a.id}>{a.name} — opening {formatEuros(a.openingBalanceCents)} on {a.openingBalanceDate}</li>
+          editing === a.id
+            ? <li key={a.id}><EditAccount account={a} onDone={() => setEditing(null)} /></li>
+            : (
+              <li key={a.id} className="row">
+                <span>{a.name} — opening {formatEuros(a.openingBalanceCents)} on {a.openingBalanceDate}</span>
+                <button type="button" aria-label={`Edit ${a.name}`} onClick={() => setEditing(a.id)}>Edit</button>
+              </li>
+            )
         ))}
       </ul>
       <form onSubmit={submit} className="row">
@@ -43,6 +75,7 @@ function Accounts() {
         <label>Opening balance date<input aria-label="Opening balance date" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
         <button type="submit" disabled={!name.trim() || cents === null || create.isPending}>Add account</button>
       </form>
+      <p className="muted">The opening balance is what the account held at the start of that day, before any transactions on it.</p>
       <ErrorText error={create.error} />
     </section>
   );

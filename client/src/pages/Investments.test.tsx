@@ -74,4 +74,17 @@ describe('Investments', () => {
       name: 'Certificados de Aforro A', type: 'savings_certificate', startDate: '2025-03-01', expectedAnnualReturn: 0.025,
     }));
   });
+
+  test('a wrong valuation can be seen and deleted in the manage dialog (final review I5)', async () => {
+    m.listValuations.mockResolvedValue([{ id: 9, holdingId: 1, date: '2026-11-15', valueCents: 1200000 }]);
+    m.deleteValuation.mockResolvedValue(undefined);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderPage();
+    const user = userEvent.setup();
+    await user.click(within(await screen.findByRole('article')).getByRole('button', { name: 'Manage' }));
+    const dialog = screen.getByRole('dialog');
+    const item = (await within(dialog).findByText(/2026-11-15/)).closest('li')!;
+    await user.click(within(item).getByRole('button', { name: 'Remove' }));
+    await waitFor(() => expect(m.deleteValuation).toHaveBeenCalledWith(9));
+  });
 });

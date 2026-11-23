@@ -173,3 +173,16 @@ describe('GET /api/transactions and export', () => {
     );
   });
 });
+
+describe('PATCH with an unchanged category (final review I3)', () => {
+  test('re-sending the same category keeps its source and does not rewrite the rule', async () => {
+    // Rule says CONTINENTE → Groceries; an older row was put in Shopping by the AI.
+    await post({ ...base, categoryId: catId('Groceries') });
+    db.prepare("UPDATE transactions SET category_id = ?, category_source = 'ai' WHERE id = 1").run(catId('Shopping'));
+    const res = await request(app).patch('/api/transactions/1').send({ date: '2026-03-06', categoryId: catId('Shopping') });
+    expect(res.status).toBe(200);
+    expect(res.body.categorySource).toBe('ai');
+    expect(res.body.date).toBe('2026-03-06');
+    expect(rules()).toEqual([{ k: 'CONTINENTE', c: catId('Groceries') }]);
+  });
+});

@@ -39,3 +39,12 @@ test('serves the built client for non-API routes and keeps /api JSON', async () 
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('rejects requests whose Host is not local (DNS rebinding guard, final review I6)', async () => {
+  const app = createApp({ db: openDb(':memory:'), ai: null });
+  expect((await request(app).get('/api/health').set('Host', 'evil.example:4321')).status).toBe(403);
+  expect((await request(app).get('/api/health').set('Host', 'rebind.attacker.test')).status).toBe(403);
+  expect((await request(app).get('/api/health').set('Host', 'localhost:5173')).status).toBe(200);
+  expect((await request(app).get('/api/health').set('Host', '127.0.0.1:4321')).status).toBe(200);
+  expect((await request(app).get('/api/health').set('Host', '[::1]:4321')).status).toBe(200);
+});

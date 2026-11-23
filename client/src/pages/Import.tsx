@@ -41,7 +41,7 @@ function Mapper({ accountId, fileBase64, initial, onSaved }: {
     if (!isProfileComplete({ ...draft, name: draft.name || 'draft' })) { setSample(null); return; }
     let live = true;
     const t = setTimeout(() => {
-      api.importPreview({ accountId, profile: { ...draft, name: draft.name || 'draft' }, fileBase64 })
+      api.importPreview({ accountId, profile: { ...draft, name: draft.name || 'draft' }, fileBase64, categorize: false })
         .then((r) => { if (live) setSample(r); })
         .catch(() => { if (live) setSample(null); });
     }, 300);

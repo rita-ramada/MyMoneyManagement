@@ -70,7 +70,7 @@ export const api = {
 
   importColumns: (b: { fileBase64: string; delimiter: string; skipRows: number }) =>
     call<{ cells: string[][] }>('POST', '/import/columns', b),
-  importPreview: (b: { accountId: number; profile: ProfileInput; fileBase64: string }) =>
+  importPreview: (b: { accountId: number; profile: ProfileInput; fileBase64: string; categorize?: boolean }) =>
     call<ImportPreview>('POST', '/import/preview', b),
   importCommit: (b: { accountId: number; fileName: string; rows: CommitRow[] }) =>
     call<{ batchId: number; saved: number; skipped: number }>('POST', '/import/commit', b),

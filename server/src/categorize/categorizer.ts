@@ -68,8 +68,12 @@ export async function categorizeRows(
         if (categoryId === undefined) continue;
         for (const row of groups[Number(item.id.slice(1))]) results.set(row.key, { categoryId, source: 'ai' });
       }
-    } catch {
+    } catch (err) {
       failed = true;
+      // Type and HTTP status only: messages can echo request content, which must never reach logs.
+      const name = err instanceof Error ? err.constructor.name : typeof err;
+      const status = (err as { status?: unknown } | null)?.status;
+      console.warn(`[ai] categorization batch failed: ${name}${typeof status === 'number' ? ` (HTTP ${status})` : ''}`);
     }
   }
 

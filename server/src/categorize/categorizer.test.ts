@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Category } from '@mmm/shared/src/types';
 import type { AiCategorizer, AiItem } from './ai';
 import { categorizeRows } from './categorizer';
@@ -141,5 +141,24 @@ describe('categorizeRows', () => {
       expect(calls).toHaveLength(0);
       expect(results.get('r')).toEqual(none);
     });
+  });
+});
+
+describe('AI failure diagnostics (final review I7)', () => {
+  it('logs the error type and HTTP status, never the request content', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    class AuthenticationError extends Error { status = 401; }
+    const ai: AiCategorizer = { categorize: async () => { throw new AuthenticationError('invalid x-api-key NETFLIX'); } };
+    const { aiNotice } = await categorizeRows(
+      [{ key: 'r1', description: 'NETFLIX.COM 4321 JOAO', amountCents: -1399 }],
+      { rules: new Map(), transferPatterns: [], categories, ai, aiEnabled: true },
+    );
+    expect(aiNotice).toMatch(/AI categorization failed/);
+    expect(warn).toHaveBeenCalledTimes(1);
+    const logged = warn.mock.calls[0].join(' ');
+    expect(logged).toContain('AuthenticationError');
+    expect(logged).toContain('401');
+    expect(logged).not.toMatch(/NETFLIX|JOAO|4321|x-api-key/);
+    warn.mockRestore();
   });
 });

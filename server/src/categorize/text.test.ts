@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it, test } from 'vitest';
 import { isTransferLike, merchantKey, scrubForAi, stripDiacritics } from './text';
 
 const defaults = ['TRF', 'TRANSF', 'MB WAY', 'MBWAY', 'SEPA', 'TRANSFERENCIA'];
@@ -114,5 +114,20 @@ describe('isTransferLike', () => {
   });
   it('ignores empty patterns', () => {
     expect(isTransferLike('CONTINENTE', ['', '  '])).toBe(false);
+  });
+});
+
+describe('isTransferLike — real bank wordings (final review C1)', () => {
+  test.each([
+    'TRANSFERENCIAS RECEBIDAS JOAO SILVA',
+    'Transfer to JOAO SILVA',
+    'Transfer from MARIA',
+    'TRANSFERIDO PARA ANA',
+    'MBWAY-PEDRO',
+  ])('%s is a transfer', (d) => expect(isTransferLike(d, defaults)).toBe(true));
+
+  test('short patterns stay whole-word', () => {
+    expect(isTransferLike('SEPARADOR LDA', defaults)).toBe(false);
+    expect(isTransferLike('TRFX COFFEE', defaults)).toBe(false);
   });
 });

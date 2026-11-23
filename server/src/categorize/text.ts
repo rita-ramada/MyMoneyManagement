@@ -45,6 +45,9 @@ export function isTransferLike(description: string, patterns: string[]): boolean
   return patterns.some((p) => {
     const pat = stripDiacritics(p).toUpperCase().trim();
     if (!pat) return false;
-    return new RegExp(`(?<![A-Z0-9])${escapeRe(pat)}(?![A-Z0-9])`).test(text);
+    // Patterns of 5+ characters match as word prefixes (TRANSF → TRANSFERENCIAS, "Transfer to");
+    // shorter ones (TRF, SEPA) must be whole words so they don't swallow merchant names.
+    const tail = pat.length >= 5 ? '' : '(?![A-Z0-9])';
+    return new RegExp(`(?<![A-Z0-9])${escapeRe(pat)}${tail}`).test(text);
   });
 }

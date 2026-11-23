@@ -1,7 +1,7 @@
 import type { Database } from 'better-sqlite3';
 import { Router, type Response } from 'express';
 import { z } from 'zod';
-import type { ImportPreview, PreviewRow, Transaction } from '@mmm/shared/src/types';
+import type { CategorySource, ImportPreview, PreviewRow, Transaction } from '@mmm/shared/src/types';
 import type { AiCategorizer } from '../categorize/ai';
 import { categorizeRows } from '../categorize/categorizer';
 import { merchantKey } from '../categorize/text';
@@ -25,6 +25,8 @@ const previewSchema = z.object({
   // An `id` on the profile (saved, or edited but unsaved) is ignored; the given fields are used as sent.
   profile: profileSchema,
   fileBase64: z.string(),
+  /** false = parse and dedupe only (column-mapping sample): no rules, no AI. */
+  categorize: z.boolean().default(true),
 });
 
 const commitRowSchema = z
@@ -100,7 +102,9 @@ export function importRouter(db: Database, ai: AiCategorizer | null): Router {
     }
     const matchByIndex = new Map(fresh.map(({ i }, k) => [i, matched[k]]));
 
-    const { results, aiNotice } = await categorizeRows(
+    const { results, aiNotice } = !b.categorize
+      ? { results: new Map<string, { categoryId: number | null; source: CategorySource }>(), aiNotice: null }
+      : await categorizeRows(
       fresh.map(({ p }) => ({ key: `L${p.line}`, description: p.description, amountCents: p.amountCents })),
       {
         rules: new Map(repo.listRules(db).map((x) => [x.merchantKey, x.categoryId])),

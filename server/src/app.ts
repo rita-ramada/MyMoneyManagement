@@ -17,6 +17,12 @@ export interface AppDeps {
 
 export function createApp(deps: AppDeps): express.Express {
   const app = express();
+  // DNS-rebinding guard: a web page can point its own domain at 127.0.0.1, but it can't fake the Host header.
+  app.use((req, res, next) => {
+    const host = (req.headers.host ?? '').toLowerCase().replace(/:\d+$/, '');
+    if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return next();
+    res.status(403).json({ error: 'Forbidden host' });
+  });
   app.use(express.json({ limit: '5mb' }));
 
   app.get('/api/health', (_req, res) => {

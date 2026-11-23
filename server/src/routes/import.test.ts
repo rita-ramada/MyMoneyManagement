@@ -225,3 +225,14 @@ describe('POST /api/import/commit', () => {
     expect(db.prepare('SELECT id FROM transactions WHERE id = ?').get(manualId)).toBeDefined();
   });
 });
+
+describe('parse-only preview (final review I1)', () => {
+  test('categorize:false parses rows but never calls the AI or rules', async () => {
+    const res = await request(app).post('/api/import/preview').send({ accountId: 1, profile, fileBase64: b64(fixtureBytes), categorize: false });
+    expect(res.status).toBe(200);
+    expect(res.body.rows).toHaveLength(6);
+    expect(aiCalls).toHaveLength(0);
+    expect(res.body.rows.every((r: { categorySource: string }) => r.categorySource === 'none')).toBe(true);
+    expect(res.body.aiNotice).toBeNull();
+  });
+});

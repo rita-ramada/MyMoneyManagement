@@ -104,6 +104,30 @@ function Contributions({ holding }: { holding: Holding }) {
   );
 }
 
+function Valuations({ holding }: { holding: Holding }) {
+  const invalidate = useInvalidate();
+  const list = useQuery({ queryKey: ['valuations', holding.id], queryFn: () => api.listValuations(holding.id) });
+  const remove = useMutation({
+    mutationFn: (id: number) => api.deleteValuation(id),
+    onSuccess: () => invalidate('valuations', 'investments', 'netWorth'),
+  });
+  return (
+    <>
+      <h3>Values you entered</h3>
+      {list.data?.length === 0 && <p className="muted">None yet. Use “Update value” on the card.</p>}
+      <ul className="list">
+        {list.data?.map((v) => (
+          <li key={v.id} className="row">
+            <span>{formatEuros(v.valueCents)} on {v.date}</span>
+            <button type="button" onClick={() => { if (window.confirm(`Remove the value entered on ${v.date}?`)) remove.mutate(v.id); }}>Remove</button>
+          </li>
+        ))}
+      </ul>
+      <ErrorText error={remove.error} />
+    </>
+  );
+}
+
 function ManageHolding({ holding, onDone }: { holding?: Holding; onDone: () => void }) {
   const invalidate = useInvalidate();
   const [name, setName] = useState(holding?.name ?? '');
@@ -146,6 +170,7 @@ function ManageHolding({ holding, onDone }: { holding?: Holding; onDone: () => v
         </div>
       </form>
       {holding && <Contributions holding={holding} />}
+      {holding && <Valuations holding={holding} />}
     </Modal>
   );
 }

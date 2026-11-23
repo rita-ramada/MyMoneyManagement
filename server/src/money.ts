@@ -26,7 +26,8 @@ export function parseAmountToCents(raw: string, decimalSeparator: ',' | '.'): nu
 }
 
 export function parseDate(raw: string, format: BankProfile['dateFormat']): string | null {
-  const parts = raw.trim().split(/[-/.]/);
+  // Drop a trailing time ("2026-11-02 10:22:33", "2026-11-02T10:22") — only the calendar date matters.
+  const parts = raw.trim().split(/[ T]/)[0].split(/[-/.]/);
   if (parts.length !== 3 || parts.some((p) => !/^\d+$/.test(p))) return null;
   const order = format.split(/[-/.]/);
   const get = (k: string) => parts[order.indexOf(k)];

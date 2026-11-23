@@ -113,7 +113,9 @@ export function transactionsRouter(db: Database): Router {
       patch.description = b.description;
       patch.merchantKey = merchantKey(b.description);
     }
-    if (b.categoryId !== undefined) {
+    // Re-sending the current category (e.g. an edit form saving other fields) is not a correction.
+    const categoryChanged = b.categoryId !== undefined && b.categoryId !== t.categoryId;
+    if (categoryChanged) {
       patch.categoryId = b.categoryId;
       patch.categorySource = b.categoryId === null ? 'none' : 'manual';
     }
@@ -125,7 +127,7 @@ export function transactionsRouter(db: Database): Router {
     const updated = db.transaction(() => {
       const u = repo.updateTransaction(db, id, patch);
       // The rule is keyed by this row's (possibly new) merchant key; other transactions are untouched.
-      if (b.categoryId != null && u && u.merchantKey !== '') repo.upsertRule(db, u.merchantKey, b.categoryId);
+      if (categoryChanged && b.categoryId != null && u && u.merchantKey !== '') repo.upsertRule(db, u.merchantKey, b.categoryId);
       return u;
     })();
     res.json(updated);

@@ -45,4 +45,19 @@ describe('Settings', () => {
       name: 'Main', bankProfileId: null, openingBalanceCents: 123450, openingBalanceDate: '2026-01-01',
     }));
   });
+
+  test('editing an account sends the corrected opening balance (final review I4)', async () => {
+    m.listAccounts.mockResolvedValue([{ id: 7, name: 'Main', bankProfileId: 3, openingBalanceCents: 100000, openingBalanceDate: '2026-01-01' }]);
+    m.updateAccount.mockResolvedValue({});
+    renderPage();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Edit Main' }));
+    const bal = screen.getByLabelText('Edit opening balance (€)');
+    await user.clear(bal);
+    await user.type(bal, '1200,50');
+    await user.click(screen.getByRole('button', { name: 'Save account' }));
+    await waitFor(() => expect(m.updateAccount).toHaveBeenCalledWith(7, {
+      name: 'Main', bankProfileId: 3, openingBalanceCents: 120050, openingBalanceDate: '2026-01-01',
+    }));
+  });
 });

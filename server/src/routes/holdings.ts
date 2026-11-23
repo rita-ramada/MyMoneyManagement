@@ -87,6 +87,18 @@ export function holdingsRouter(db: Database): Router {
     res.status(204).end();
   });
 
+  r.get('/holdings/:id/contributions', (req, res) => {
+    const id = parseId(req.params.id);
+    if (id === undefined || !repo.getHolding(db, id)) return fail(res, 'Holding not found', 404);
+    res.json(repo.listContributions(db, id));
+  });
+
+  r.get('/holdings/:id/valuations', (req, res) => {
+    const id = parseId(req.params.id);
+    if (id === undefined || !repo.getHolding(db, id)) return fail(res, 'Holding not found', 404);
+    res.json(repo.listValuations(db, id));
+  });
+
   r.post('/holdings/:id/contributions', (req, res) => {
     const id = parseId(req.params.id);
     if (id === undefined || !repo.getHolding(db, id)) return fail(res, 'Holding not found', 404);

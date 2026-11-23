@@ -91,7 +91,9 @@ export const api = {
   createHolding: (h: HoldingInput) => call<Holding>('POST', '/holdings', h),
   updateHolding: (id: number, h: HoldingInput) => call<Holding>('PUT', `/holdings/${id}`, h),
   deleteHolding: (id: number) => call<void>('DELETE', `/holdings/${id}`),
-  addContribution: (holdingId: number, c: Omit<HoldingContribution, 'id' | 'holdingId'>) =>
+  listContributions: (holdingId: number) => call<HoldingContribution[]>('GET', `/holdings/${holdingId}/contributions`),
+  listValuations: (holdingId: number) => call<HoldingValuation[]>('GET', `/holdings/${holdingId}/valuations`),
+  addContribution:(holdingId: number, c: Omit<HoldingContribution, 'id' | 'holdingId'>) =>
     call<HoldingContribution>('POST', `/holdings/${holdingId}/contributions`, c),
   deleteContribution: (id: number) => call<void>('DELETE', `/holding-contributions/${id}`),
   addValuation: (holdingId: number, v: Omit<HoldingValuation, 'id' | 'holdingId'>) =>

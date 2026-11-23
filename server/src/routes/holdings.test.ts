@@ -119,3 +119,18 @@ describe('GET /api/export/holdings.csv', () => {
     expect(res.text.split('\r\n')[1].startsWith("'+Gold;")).toBe(true);
   });
 });
+
+describe('listing a holding\'s contributions and valuations', () => {
+  test('returns them for the holding, 404 for an unknown holding', async () => {
+    await request(app).post('/api/holdings').send({ name: 'ETF', type: 'etf', startDate: '2026-01-01', expectedAnnualReturn: 0.07 });
+    await request(app).post('/api/holdings/1/contributions').send({ kind: 'monthly', amountCents: 10000, effectiveFrom: '2026-01-01' });
+    await request(app).post('/api/holdings/1/valuations').send({ date: '2026-02-10', valueCents: 21000 });
+    const c = await request(app).get('/api/holdings/1/contributions');
+    expect(c.status).toBe(200);
+    expect(c.body).toEqual([{ id: 1, holdingId: 1, kind: 'monthly', amountCents: 10000, effectiveFrom: '2026-01-01' }]);
+    const v = await request(app).get('/api/holdings/1/valuations');
+    expect(v.body).toEqual([{ id: 1, holdingId: 1, date: '2026-02-10', valueCents: 21000 }]);
+    expect((await request(app).get('/api/holdings/99/contributions')).status).toBe(404);
+    expect((await request(app).get('/api/holdings/99/valuations')).status).toBe(404);
+  });
+});

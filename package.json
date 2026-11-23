@@ -1,0 +1,23 @@
+{
+  "name": "mymoneymanagement",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "run-p dev:server dev:client",
+    "dev:server": "npm run dev -w server",
+    "dev:client": "npm run dev -w client",
+    "start": "npm run build -w client && npm run start -w server",
+    "test": "npm test --workspaces --if-present"
+  },
+  "devDependencies": {
+    "npm-run-all2": "^9.1.0"
+  }
+}

@@ -1,3 +1,7 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { openDb } from './db/db';
 import { once } from 'node:events';
 import type { AddressInfo } from 'node:net';
 import request from 'supertest';
@@ -17,4 +21,21 @@ test('server binds to 127.0.0.1 only', async () => {
   await once(server, 'listening');
   expect((server.address() as AddressInfo).address).toBe('127.0.0.1');
   server.close();
+});
+
+test('serves the built client for non-API routes and keeps /api JSON', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mmm-dist-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'index.html'), '<!doctype html><title>MyMoney</title>');
+    const app = createApp({ db: openDb(':memory:'), ai: null, clientDistDir: dir });
+    const page = await request(app).get('/investments');
+    expect(page.status).toBe(200);
+    expect(page.headers['content-type']).toMatch(/html/);
+    expect(page.text).toContain('<title>MyMoney</title>');
+    const health = await request(app).get('/api/health');
+    expect(health.body).toEqual({ ok: true });
+    expect((await request(app).get('/api/nope')).status).toBe(404);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

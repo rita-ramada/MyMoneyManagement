@@ -54,6 +54,10 @@ describe('scrubForAi', () => {
     ['PAG SERV ENT 21 312 REF 12-345-678-9', 'PAG SERV ENT REF'],
     ['MB WAY 912 345 678', 'MB WAY'],
     ['MB WAY 912\t345\t678', 'MB WAY'],
+    ['MB WAY 912 - 345 - 678', 'MB WAY'],
+    ['MB WAY 912 / 345 / 678', 'MB WAY'],
+    ['MB WAY 912 -- 345 -- 678', 'MB WAY'],
+    ['MB WAY ９１２３４５６７８', 'MB WAY'],
     ['TRF PT50.0002.0123.1234.5678.9015.4 RENDA', 'TRF RENDA'],
     ['TRF PT50-0002-0123-1234-5678-9015-4 RENDA', 'TRF RENDA'],
   ])('separator variants: %s', (input, expected) => {
@@ -72,18 +76,29 @@ describe('scrubForAi', () => {
       seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
       return seed / 2 ** 32;
     };
-    const alphabet = '0123456789 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij -./ \t';
+    const chars = '0123456789 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij';
+    const seps = ['-', '.', '/', '*', '_', ' ', ' ', '\t'];
+    const pick = (a: string | string[]) => a[Math.floor(rnd() * a.length)];
     for (let i = 0; i < 200; i++) {
-      const len = 1 + Math.floor(rnd() * 60);
+      const len = 1 + Math.floor(rnd() * 30);
       let s = '';
-      for (let j = 0; j < len; j++) s += alphabet[Math.floor(rnd() * alphabet.length)];
+      for (let j = 0; j < len; j++) {
+        s += pick(chars);
+        const n = Math.floor(rnd() * 5); // 0-4 separator chars
+        for (let k = 0; k < n; k++) s += pick(seps);
+      }
       const out = scrubForAi(s);
       expect(out).not.toMatch(/\d{4,}/);
-      // also no digit group that is 4+ digits once single separators are ignored
-      for (const g of out.match(/\d(?:[^A-Za-z0-9]?\d)*/g) ?? []) {
-        expect(g.replace(/\D/g, '').length).toBeLessThan(4);
-      }
+      // ignoring all separators, no 4+ digit run remains
+      expect(out.replace(/[^\p{L}\p{Nd}]/gu, '')).not.toMatch(/\p{Nd}{4,}/u);
     }
+  });
+
+  it('is fast on long digit+separator input', () => {
+    const s = '12 - '.repeat(1000);
+    const t = performance.now();
+    scrubForAi(s);
+    expect(performance.now() - t).toBeLessThan(50);
   });
 });
 

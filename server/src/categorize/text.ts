@@ -26,12 +26,14 @@ export function scrubForAi(description: string): string {
     // separated IBAN: each group after the first must contain a digit, so words survive
     .replace(/\b[A-Z]{2}\d{2}(?:[ .\/-]?(?=[A-Z]*\d)[A-Z0-9]{4}){2,7}(?:[ .\/-]?\d{1,4})?\b/gi, ' ')
     .replace(/\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b/gi, ' ') // compact IBAN
-    // phone/NIF/reference-like: 4+ digits joined by short non-alphanumeric separators
-    .replace(/\+?\d(?:[^A-Za-z0-9]{0,2}\d){3,}/g, ' ')
+    // phone/NIF/reference-like: 4+ digits (any Unicode digit) joined by any run of
+    // non-letter, non-digit characters. Linear: the separator class never matches a digit.
+    .replace(/\+?\p{Nd}(?:[^\p{L}\p{Nd}]*\p{Nd}){3,}/gu, ' ')
     .replace(/\b(?:X{4}[ -]*)+/gi, ' ') // card masks
     .replace(/\*+\d*/g, ' ')
-    .replace(/\d{4,}/g, ' ');
-  return collapse(s);
+    .replace(/\p{Nd}{4,}/gu, ' '); // backstop
+  // drop stray punctuation-only tokens left behind by removals
+  return collapse(collapse(s).replace(/(^| )[-./*_]+(?= |$)/g, ' '));
 }
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

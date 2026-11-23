@@ -52,3 +52,22 @@ describe('GET /api/reports/spending', () => {
     expect((await request(app).get('/api/reports/spending?month=2026-13')).status).toBe(400);
   });
 });
+
+describe('GET /api/reports/net-worth', () => {
+  test('combines account balances and holding values per month', async () => {
+    add(1, '2026-01-10', -1000, null);
+    db.prepare("UPDATE accounts SET opening_balance_cents = 100000 WHERE id = 1").run();
+    db.prepare("INSERT INTO holdings (name, type, start_date, expected_annual_return) VALUES ('ETF', 'etf', '2026-02-01', 0)").run();
+    db.prepare("INSERT INTO holding_valuations (holding_id, date, value_cents) VALUES (1, '2026-02-15', 50000)").run();
+    const res = await request(app).get('/api/reports/net-worth?until=2026-02');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([
+      { month: '2026-01', bankCents: 99000, investmentsCents: 0, totalCents: 99000 },
+      { month: '2026-02', bankCents: 99000, investmentsCents: 50000, totalCents: 149000 },
+    ]);
+  });
+
+  test('rejects a bad until', async () => {
+    expect((await request(app).get('/api/reports/net-worth?until=2026-13')).status).toBe(400);
+  });
+});

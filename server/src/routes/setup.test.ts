@@ -52,6 +52,23 @@ describe('accounts', () => {
     expect(typeof res.body.error).toBe('string');
   });
 
+  test.each([
+    ['invalid month', { openingBalanceDate: '2026-13-45' }],
+    ['Feb 31', { openingBalanceDate: '2026-02-31' }],
+    ['malformed date', { openingBalanceDate: 'not-a-date' }],
+    ['fractional cents', { openingBalanceCents: 1.5 }],
+    ['fractional bankProfileId', { bankProfileId: 1.5 }],
+  ])('POST and PUT reject %s with 400', async (_label, patch) => {
+    await request(app).post('/api/accounts').send(body);
+    const bad = { ...body, ...patch };
+    const post = await request(app).post('/api/accounts').send(bad);
+    expect(post.status).toBe(400);
+    expect(typeof post.body.error).toBe('string');
+    const put = await request(app).put('/api/accounts/1').send(bad);
+    expect(put.status).toBe(400);
+    expect((await request(app).get('/api/accounts')).body).toEqual([{ id: 1, ...body }]);
+  });
+
   test('PUT on unknown id returns 404', async () => {
     const res = await request(app).put('/api/accounts/99').send(body);
     expect(res.status).toBe(404);

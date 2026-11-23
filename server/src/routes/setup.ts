@@ -3,8 +3,8 @@ import { Router, type Response } from 'express';
 import { z } from 'zod';
 import { merchantKey } from '../categorize/text';
 import * as repo from '../db/repo';
+import { isoDate } from './validation';
 
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const nonEmpty = z.string().trim().min(1);
 const col = z.number().int().min(0);
 

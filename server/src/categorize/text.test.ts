@@ -18,6 +18,9 @@ describe('merchantKey', () => {
     ['PAG SERV EDP COMERCIAL REF 123456789', 'EDP COMERCIAL'],
     ['UBER   *TRIP', 'UBER TRIP'],
     ['Café Central 12:45', 'CAFE CENTRAL'],
+    ['COMPRA 99 CONTINENTE LISBOA 01/12', 'CONTINENTE LISBOA'],
+    ['LOJA 7 PINGO DOCE', 'LOJA PINGO DOCE'],
+    ['7-ELEVEN A2 PORTO', '7-ELEVEN A2 PORTO'],
   ];
   it.each(cases)('%s -> %s', (input, expected) => {
     expect(merchantKey(input)).toBe(expected);

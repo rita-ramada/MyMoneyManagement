@@ -4,7 +4,6 @@ import path from 'node:path';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { createApp } from '../app';
-import { merchantKey } from '../categorize/text';
 import { openDb } from '../db/db';
 
 const profileBody = {
@@ -130,11 +129,8 @@ describe('rules', () => {
       .run(key, categoryId, '2026-01-01T00:00:00.000Z');
 
   test('suggest returns the rule category for a matching merchant key', async () => {
-    // merchantKey keeps the standalone "99", so the stored key is "99 CONTINENTE LISBOA".
     const description = 'COMPRA 99 CONTINENTE LISBOA 01/12';
-    expect(merchantKey(description)).toBe('99 CONTINENTE LISBOA');
-    insertRule(merchantKey(description), 1);
-    insertRule('CONTINENTE LISBOA', 2);
+    insertRule('CONTINENTE LISBOA', 1);
     const res = await request(app).get('/api/rules/suggest').query({ description });
     expect(res.body).toEqual({ categoryId: 1 });
     const none = await request(app).get('/api/rules/suggest').query({ description: 'SOMETHING ELSE' });

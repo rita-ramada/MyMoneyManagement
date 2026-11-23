@@ -14,6 +14,8 @@ export function merchantKey(description: string): string {
     .replace(/X{4}/g, ' ')
     .replace(/\d{3,}/g, ' ')
     .replace(/\*/g, ' ');
+  // Drop standalone all-digit tokens of any length; tokens mixing letters and digits stay.
+  s = collapse(s).replace(/(^| )\d+(?= |$)/g, ' ');
   s = collapse(s);
   s = s.replace(/^(COMPRA|PAG(AMENTO)?( SERV)?|POS|DD|TPA)\b\s*/, '');
   return collapse(s);

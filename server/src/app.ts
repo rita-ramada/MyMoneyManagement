@@ -2,6 +2,8 @@ import path from 'node:path';
 import type { Database } from 'better-sqlite3';
 import express from 'express';
 import type { AiCategorizer } from './categorize/ai';
+import { adminRouter } from './routes/admin';
+import { setupRouter } from './routes/setup';
 
 export interface AppDeps {
   db: Database;
@@ -16,6 +18,9 @@ export function createApp(deps: AppDeps): express.Express {
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true });
   });
+
+  app.use('/api', setupRouter(deps.db));
+  app.use('/api', adminRouter(deps.db, deps.ai !== null));
 
   if (deps.clientDistDir) {
     const dist = deps.clientDistDir;

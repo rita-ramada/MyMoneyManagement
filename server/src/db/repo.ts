@@ -282,6 +282,9 @@ export interface TransactionFilter {
   /** A category id, or 'none' for uncategorized rows. */
   categoryId?: number | 'none';
   month?: string;
+  /** Inclusive date bounds (YYYY-MM-DD). */
+  from?: string;
+  to?: string;
   /** Case-insensitive substring of the description. */
   q?: string;
 }
@@ -294,6 +297,8 @@ export function listTransactions(db: Database, f: TransactionFilter): Transactio
   if (f.categoryId === 'none') where.push('category_id IS NULL');
   else if (f.categoryId !== undefined) { where.push('category_id = ?'); args.push(f.categoryId); }
   if (f.month !== undefined) { where.push('substr(date, 1, 7) = ?'); args.push(f.month); }
+  if (f.from !== undefined) { where.push('date >= ?'); args.push(f.from); }
+  if (f.to !== undefined) { where.push('date <= ?'); args.push(f.to); }
   const sql = `SELECT * FROM transactions ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY date DESC, id DESC`;
   let list = (db.prepare(sql).all(...args) as TransactionRow[]).map(toTransaction);
   if (f.q) {
@@ -318,4 +323,12 @@ export function updateTransaction(db: Database, id: number, p: TransactionPatch)
       .run(...keys.map((k) => p[k] as string | number | null), id);
   }
   return getTransaction(db, id);
+}
+
+/** Latest `YYYY-MM` that has a transaction, optionally for one account. */
+export function latestTransactionMonth(db: Database, accountId?: number): string | undefined {
+  const row = (accountId === undefined
+    ? db.prepare('SELECT max(substr(date, 1, 7)) AS m FROM transactions').get()
+    : db.prepare('SELECT max(substr(date, 1, 7)) AS m FROM transactions WHERE account_id = ?').get(accountId)) as { m: string | null };
+  return row.m ?? undefined;
 }

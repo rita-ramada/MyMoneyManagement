@@ -89,3 +89,17 @@ export interface CommitRow {
   action: 'save' | 'skip' | 'replace' | 'keep_both';
   replaceTransactionId?: number;
 }
+
+export interface SpendingSummary {
+  month: string;
+  /** Net expense per category (positive cents), sorted by cents descending. */
+  byCategory: { categoryId: number | null; name: string; cents: number; prevCents: number }[];
+  totalExpenseCents: number;
+  totalIncomeCents: number;
+  investedCents: number;
+  uncategorizedCount: number;
+  /** Top 10 expense merchants. */
+  topMerchants: { merchantKey: string; cents: number; count: number }[];
+  /** Oldest to newest, ending at `month`. */
+  last12: { month: string; incomeCents: number; expenseCents: number; netCents: number }[];
+}

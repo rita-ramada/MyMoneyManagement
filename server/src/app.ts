@@ -4,6 +4,7 @@ import express from 'express';
 import type { AiCategorizer } from './categorize/ai';
 import { adminRouter } from './routes/admin';
 import { importRouter } from './routes/import';
+import { reportsRouter } from './routes/reports';
 import { setupRouter } from './routes/setup';
 import { exportRouter, transactionsRouter } from './routes/transactions';
 
@@ -26,6 +27,7 @@ export function createApp(deps: AppDeps): express.Express {
   app.use('/api', importRouter(deps.db, deps.ai));
   app.use('/api', transactionsRouter(deps.db));
   app.use('/api', exportRouter(deps.db));
+  app.use('/api', reportsRouter(deps.db));
 
   if (deps.clientDistDir) {
     const dist = deps.clientDistDir;

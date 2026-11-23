@@ -1,5 +1,7 @@
 import type { Database } from 'better-sqlite3';
-import type { Account, BankProfile, Category, Rule, Transaction } from '@mmm/shared/src/types';
+import type {
+  Account, BankProfile, Category, Holding, HoldingContribution, HoldingValuation, Rule, Transaction,
+} from '@mmm/shared/src/types';
 
 export function listCategories(db: Database): Category[] {
   return db.prepare('SELECT id, name, kind FROM categories ORDER BY id').all() as Category[];
@@ -331,4 +333,78 @@ export function latestTransactionMonth(db: Database, accountId?: number): string
     ? db.prepare('SELECT max(substr(date, 1, 7)) AS m FROM transactions').get()
     : db.prepare('SELECT max(substr(date, 1, 7)) AS m FROM transactions WHERE account_id = ?').get(accountId)) as { m: string | null };
   return row.m ?? undefined;
+}
+
+// ---- holdings ----
+interface HoldingRow { id: number; name: string; type: Holding['type']; start_date: string; expected_annual_return: number }
+const toHolding = (r: HoldingRow): Holding => ({
+  id: r.id, name: r.name, type: r.type, startDate: r.start_date, expectedAnnualReturn: r.expected_annual_return,
+});
+
+export type HoldingInput = Omit<Holding, 'id'>;
+
+export function listHoldings(db: Database): Holding[] {
+  return (db.prepare('SELECT * FROM holdings ORDER BY id').all() as HoldingRow[]).map(toHolding);
+}
+
+export function getHolding(db: Database, id: number): Holding | undefined {
+  const r = db.prepare('SELECT * FROM holdings WHERE id = ?').get(id) as HoldingRow | undefined;
+  return r && toHolding(r);
+}
+
+export function insertHolding(db: Database, h: HoldingInput): Holding {
+  const id = db
+    .prepare('INSERT INTO holdings (name, type, start_date, expected_annual_return) VALUES (?, ?, ?, ?)')
+    .run(h.name, h.type, h.startDate, h.expectedAnnualReturn).lastInsertRowid as number;
+  return { id, ...h };
+}
+
+export function updateHolding(db: Database, id: number, h: HoldingInput): Holding | undefined {
+  const changes = db
+    .prepare('UPDATE holdings SET name = ?, type = ?, start_date = ?, expected_annual_return = ? WHERE id = ?')
+    .run(h.name, h.type, h.startDate, h.expectedAnnualReturn, id).changes;
+  return changes > 0 ? { id, ...h } : undefined;
+}
+
+/** Contributions and valuations go with it (ON DELETE CASCADE). */
+export function deleteHolding(db: Database, id: number): boolean {
+  return db.prepare('DELETE FROM holdings WHERE id = ?').run(id).changes > 0;
+}
+
+export function listContributions(db: Database, holdingId: number): HoldingContribution[] {
+  return (
+    db
+      .prepare('SELECT id, holding_id, kind, amount_cents, effective_from FROM holding_contributions WHERE holding_id = ? ORDER BY id')
+      .all(holdingId) as { id: number; holding_id: number; kind: HoldingContribution['kind']; amount_cents: number; effective_from: string }[]
+  ).map((r) => ({ id: r.id, holdingId: r.holding_id, kind: r.kind, amountCents: r.amount_cents, effectiveFrom: r.effective_from }));
+}
+
+export function insertContribution(db: Database, c: Omit<HoldingContribution, 'id'>): HoldingContribution {
+  const id = db
+    .prepare('INSERT INTO holding_contributions (holding_id, kind, amount_cents, effective_from) VALUES (?, ?, ?, ?)')
+    .run(c.holdingId, c.kind, c.amountCents, c.effectiveFrom).lastInsertRowid as number;
+  return { id, ...c };
+}
+
+export function deleteContribution(db: Database, id: number): boolean {
+  return db.prepare('DELETE FROM holding_contributions WHERE id = ?').run(id).changes > 0;
+}
+
+export function listValuations(db: Database, holdingId: number): HoldingValuation[] {
+  return (
+    db
+      .prepare('SELECT id, holding_id, date, value_cents FROM holding_valuations WHERE holding_id = ? ORDER BY date, id')
+      .all(holdingId) as { id: number; holding_id: number; date: string; value_cents: number }[]
+  ).map((r) => ({ id: r.id, holdingId: r.holding_id, date: r.date, valueCents: r.value_cents }));
+}
+
+export function insertValuation(db: Database, v: Omit<HoldingValuation, 'id'>): HoldingValuation {
+  const id = db
+    .prepare('INSERT INTO holding_valuations (holding_id, date, value_cents) VALUES (?, ?, ?)')
+    .run(v.holdingId, v.date, v.valueCents).lastInsertRowid as number;
+  return { id, ...v };
+}
+
+export function deleteValuation(db: Database, id: number): boolean {
+  return db.prepare('DELETE FROM holding_valuations WHERE id = ?').run(id).changes > 0;
 }

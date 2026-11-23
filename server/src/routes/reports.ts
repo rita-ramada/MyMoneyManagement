@@ -10,7 +10,7 @@ const spendingQuery = z.object({
   accountId: z.string().regex(/^\d+$/).transform(Number).optional(),
 });
 
-function currentMonth(): string {
+export function currentMonth(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }

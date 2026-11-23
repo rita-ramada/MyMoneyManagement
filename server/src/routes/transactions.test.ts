@@ -165,4 +165,11 @@ describe('GET /api/transactions and export', () => {
       '﻿Date;Account;Description;Amount;Category\r\n2026-03-05;Main;CONTINENTE 123;-54,20;Groceries\r\n',
     );
   });
+  test('export CSV neutralises formula injection in text cells', async () => {
+    await post({ accountId: 1, date: '2026-05-01', description: '=HYPERLINK("x")', amountCents: -100, categoryId: null });
+    const res = await request(app).get('/api/export/transactions.csv').query({ month: '2026-05' });
+    expect(res.text).toBe(
+      '\uFEFFDate;Account;Description;Amount;Category\r\n' + `2026-05-01;Main;"'=HYPERLINK(""x"")";-1,00;\r\n`,
+    );
+  });
 });

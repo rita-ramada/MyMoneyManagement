@@ -5,6 +5,8 @@ import { merchantKey } from '../categorize/text';
 import * as repo from '../db/repo';
 import { toExcelCsv } from '../export/excelCsv';
 import { descriptionHash } from '../import/dedupe';
+import { investmentsReport } from './holdings';
+import { currentMonth } from './reports';
 import { isoDate, isoMonth } from './validation';
 
 const intStr = z.string().regex(/^\d+$/).transform(Number);
@@ -148,6 +150,18 @@ function sendCsv(res: Response, filename: string, csv: string): void {
   res.send(csv);
 }
 
+/** Neutralise spreadsheet formula injection: text starting with = + - @ tab or CR gets a leading apostrophe. */
+function safeText(s: string): string {
+  return /^[=+@\t\r-]/.test(s) ? `'${s}` : s;
+}
+
+const exportQuery = z.object({ until: isoMonth.optional() });
+
+function lastDayOfMonth(month: string): string {
+  const [y, m] = month.split('-').map(Number);
+  return `${month}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0')}`;
+}
+
 export function exportRouter(db: Database): Router {
   const r = Router();
 
@@ -158,15 +172,32 @@ export function exportRouter(db: Database): Router {
     const categories = new Map(repo.listCategories(db).map((c) => [c.id, c.name]));
     const rows = repo.listTransactions(db, f).map((t) => [
       t.date,
-      accounts.get(t.accountId) ?? '',
-      t.description,
+      safeText(accounts.get(t.accountId) ?? ''),
+      safeText(t.description),
       t.amountCents / 100,
-      t.categoryId === null ? '' : (categories.get(t.categoryId) ?? ''),
+      t.categoryId === null ? '' : safeText(categories.get(t.categoryId) ?? ''),
     ]);
     sendCsv(res, 'transactions.csv', toExcelCsv(['Date', 'Account', 'Description', 'Amount', 'Category'], rows));
   });
 
-  // Task 11 adds GET /export/holdings.csv here (reuse sendCsv).
+  r.get('/export/holdings.csv', (req, res) => {
+    const q = parse(exportQuery, req.query, res);
+    if (!q) return;
+    const until = q.until ?? currentMonth();
+    const rows = investmentsReport(db, until).map(({ holding, latest }) => {
+      const valuationDate = latest?.confirmed
+        ? repo.listValuations(db, holding.id).filter((v) => v.date.startsWith(latest.month)).at(-1)?.date
+        : undefined;
+      return [
+        safeText(holding.name),
+        (latest?.contributedCents ?? 0) / 100,
+        (latest?.valueCents ?? 0) / 100,
+        valuationDate ?? lastDayOfMonth(until),
+        latest?.confirmed ? 'Confirmed' : 'Estimated',
+      ];
+    });
+    sendCsv(res, 'holdings.csv', toExcelCsv(['Holding', 'Contributed', 'Value', 'Value date', 'Status'], rows));
+  });
 
   return r;
 }

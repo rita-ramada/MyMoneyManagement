@@ -103,3 +103,11 @@ export interface SpendingSummary {
   /** Oldest to newest, ending at `month`. */
   last12: { month: string; incomeCents: number; expenseCents: number; netCents: number }[];
 }
+
+export interface HoldingPoint {
+  month: string;
+  /** Cumulative. */
+  contributedCents: number;
+  valueCents: number;
+  confirmed: boolean;
+}

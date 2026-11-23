@@ -5,6 +5,7 @@ import type { AiCategorizer } from './categorize/ai';
 import { adminRouter } from './routes/admin';
 import { importRouter } from './routes/import';
 import { setupRouter } from './routes/setup';
+import { exportRouter, transactionsRouter } from './routes/transactions';
 
 export interface AppDeps {
   db: Database;
@@ -23,6 +24,8 @@ export function createApp(deps: AppDeps): express.Express {
   app.use('/api', setupRouter(deps.db));
   app.use('/api', adminRouter(deps.db, deps.ai !== null));
   app.use('/api', importRouter(deps.db, deps.ai));
+  app.use('/api', transactionsRouter(deps.db));
+  app.use('/api', exportRouter(deps.db));
 
   if (deps.clientDistDir) {
     const dist = deps.clientDistDir;

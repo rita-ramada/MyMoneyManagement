@@ -276,3 +276,46 @@ export function createImportBatch(
     .run(b.accountId, b.fileName, new Date().toISOString(), b.rowsTotal, b.rowsImported, b.rowsDuplicate);
   return Number(info.lastInsertRowid);
 }
+
+export interface TransactionFilter {
+  accountId?: number;
+  /** A category id, or 'none' for uncategorized rows. */
+  categoryId?: number | 'none';
+  month?: string;
+  /** Case-insensitive substring of the description. */
+  q?: string;
+}
+
+/** Newest first. */
+export function listTransactions(db: Database, f: TransactionFilter): Transaction[] {
+  const where: string[] = [];
+  const args: (string | number)[] = [];
+  if (f.accountId !== undefined) { where.push('account_id = ?'); args.push(f.accountId); }
+  if (f.categoryId === 'none') where.push('category_id IS NULL');
+  else if (f.categoryId !== undefined) { where.push('category_id = ?'); args.push(f.categoryId); }
+  if (f.month !== undefined) { where.push('substr(date, 1, 7) = ?'); args.push(f.month); }
+  const sql = `SELECT * FROM transactions ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY date DESC, id DESC`;
+  let list = (db.prepare(sql).all(...args) as TransactionRow[]).map(toTransaction);
+  if (f.q) {
+    const q = f.q.toLowerCase();
+    list = list.filter((t) => t.description.toLowerCase().includes(q));
+  }
+  return list;
+}
+
+export type TransactionPatch = Partial<
+  Pick<Transaction, 'date' | 'description' | 'merchantKey' | 'amountCents' | 'categoryId' | 'categorySource' | 'dedupeHash'>
+>;
+
+export function updateTransaction(db: Database, id: number, p: TransactionPatch): Transaction | undefined {
+  const cols: Record<keyof TransactionPatch, string> = {
+    date: 'date', description: 'description', merchantKey: 'merchant_key', amountCents: 'amount_cents',
+    categoryId: 'category_id', categorySource: 'category_source', dedupeHash: 'dedupe_hash',
+  };
+  const keys = (Object.keys(p) as (keyof TransactionPatch)[]).filter((k) => p[k] !== undefined);
+  if (keys.length > 0) {
+    db.prepare(`UPDATE transactions SET ${keys.map((k) => `${cols[k]} = ?`).join(', ')} WHERE id = ?`)
+      .run(...keys.map((k) => p[k] as string | number | null), id);
+  }
+  return getTransaction(db, id);
+}

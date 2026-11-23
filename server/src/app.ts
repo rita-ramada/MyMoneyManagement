@@ -1,9 +1,10 @@
 import path from 'node:path';
+import type { Database } from 'better-sqlite3';
 import express from 'express';
 
 export interface AppDeps {
-  // Task 2 replaces `unknown` with the Database type; AI type arrives later.
-  db: unknown;
+  db: Database;
+  // AI type arrives in a later task.
   ai: unknown | null;
   clientDistDir?: string;
 }

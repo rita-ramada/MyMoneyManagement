@@ -1,11 +1,13 @@
 import type http from 'node:http';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Express } from 'express';
 import { createApp } from './app';
+import { openDb } from './db/db';
 
 export function startServer(port: number, app?: Express): http.Server {
-  const instance = app ?? createApp({ db: null, ai: null });
+  const instance = app ?? createApp({ db: openDb(':memory:'), ai: null });
   return instance.listen(port, '127.0.0.1');
 }
 
@@ -17,9 +19,12 @@ if (isEntry) {
   } catch {
     // no .env file; fine
   }
-  // Task 2: open the DB (data/finance.db) and build the AI client here, then pass to createApp.
+  const dataDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../data');
+  fs.mkdirSync(dataDir, { recursive: true });
+  const db = openDb(path.join(dataDir, 'finance.db'));
+  // Later task: build the AI client here (only when ANTHROPIC_API_KEY is set).
   const port = Number(process.env.PORT ?? 4321);
   const clientDistDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
-  const server = startServer(port, createApp({ db: null, ai: null, clientDistDir }));
+  const server = startServer(port, createApp({ db, ai: null, clientDistDir }));
   server.on('listening', () => console.log(`Listening on http://127.0.0.1:${port}`));
 }

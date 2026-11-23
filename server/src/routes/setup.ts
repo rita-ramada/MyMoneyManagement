@@ -15,7 +15,7 @@ const accountSchema = z.object({
   openingBalanceDate: isoDate,
 });
 
-const profileSchema = z
+export const profileSchema = z
   .object({
     name: nonEmpty,
     delimiter: z.enum([',', ';', '\t']),

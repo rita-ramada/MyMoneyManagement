@@ -65,3 +65,27 @@ export interface HoldingValuation { id: number; holdingId: number; date: string;
 
 export interface ParsedRow { line: number; date: string; description: string; amountCents: number }
 export interface RowError { line: number; raw: string; reason: string }
+
+export interface PreviewRow {
+  key: string;
+  line: number;
+  date: string;
+  description: string;
+  amountCents: number;
+  status: 'new' | 'duplicate' | 'possible_manual_match';
+  /** For duplicates: the stored category. */
+  categoryId: number | null;
+  categorySource: CategorySource;
+  matchedManual: Transaction | null;
+}
+export interface ImportPreview { rows: PreviewRow[]; errors: RowError[]; aiNotice: string | null }
+export interface CommitRow {
+  key: string;
+  date: string;
+  description: string;
+  amountCents: number;
+  categoryId: number | null;
+  categorySource: CategorySource;
+  action: 'save' | 'skip' | 'replace' | 'keep_both';
+  replaceTransactionId?: number;
+}

@@ -1,5 +1,5 @@
 import type { Database } from 'better-sqlite3';
-import type { Account, BankProfile, Category, Rule } from '@mmm/shared/src/types';
+import type { Account, BankProfile, Category, Rule, Transaction } from '@mmm/shared/src/types';
 
 export function listCategories(db: Database): Category[] {
   return db.prepare('SELECT id, name, kind FROM categories ORDER BY id').all() as Category[];
@@ -170,4 +170,109 @@ export function findRuleCategory(db: Database, key: string): number | null {
     | { c: number }
     | undefined;
   return r ? r.c : null;
+}
+
+// ---- transactions & import ----
+interface TransactionRow {
+  id: number;
+  account_id: number;
+  date: string;
+  description: string;
+  merchant_key: string;
+  amount_cents: number;
+  category_id: number | null;
+  category_source: Transaction['categorySource'];
+  origin: Transaction['origin'];
+  import_batch_id: number | null;
+  dedupe_hash: string;
+}
+const toTransaction = (r: TransactionRow): Transaction => ({
+  id: r.id,
+  accountId: r.account_id,
+  date: r.date,
+  description: r.description,
+  merchantKey: r.merchant_key,
+  amountCents: r.amount_cents,
+  categoryId: r.category_id,
+  categorySource: r.category_source,
+  origin: r.origin,
+  importBatchId: r.import_batch_id,
+  dedupeHash: r.dedupe_hash,
+});
+
+export function getTransaction(db: Database, id: number): Transaction | undefined {
+  const r = db.prepare('SELECT * FROM transactions WHERE id = ?').get(id) as TransactionRow | undefined;
+  return r && toTransaction(r);
+}
+
+/** Stored transactions of an account per dedupe hash, oldest first. */
+export function transactionsByHash(db: Database, accountId: number, hashes: string[]): Map<string, Transaction[]> {
+  const out = new Map<string, Transaction[]>();
+  const unique = [...new Set(hashes)];
+  const CHUNK = 500;
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const part = unique.slice(i, i + CHUNK);
+    const rows = db
+      .prepare(
+        `SELECT * FROM transactions WHERE account_id = ? AND dedupe_hash IN (${part.map(() => '?').join(',')}) ORDER BY id`,
+      )
+      .all(accountId, ...part) as TransactionRow[];
+    for (const r of rows) {
+      const list = out.get(r.dedupe_hash) ?? [];
+      list.push(toTransaction(r));
+      out.set(r.dedupe_hash, list);
+    }
+  }
+  return out;
+}
+
+export function listManualTransactions(db: Database, accountId: number, from: string, to: string): Transaction[] {
+  return (
+    db
+      .prepare(
+        "SELECT * FROM transactions WHERE account_id = ? AND origin = 'manual' AND date >= ? AND date <= ? ORDER BY date, id",
+      )
+      .all(accountId, from, to) as TransactionRow[]
+  ).map(toTransaction);
+}
+
+export function insertTransaction(db: Database, t: Omit<Transaction, 'id'>): number {
+  const info = db
+    .prepare(
+      `INSERT INTO transactions (account_id, date, description, merchant_key, amount_cents, category_id,
+        category_source, origin, import_batch_id, dedupe_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      t.accountId, t.date, t.description, t.merchantKey, t.amountCents, t.categoryId,
+      t.categorySource, t.origin, t.importBatchId, t.dedupeHash,
+    );
+  return Number(info.lastInsertRowid);
+}
+
+export function deleteTransaction(db: Database, id: number): boolean {
+  return db.prepare('DELETE FROM transactions WHERE id = ?').run(id).changes > 0;
+}
+
+export function categoryExists(db: Database, id: number): boolean {
+  return db.prepare('SELECT 1 FROM categories WHERE id = ?').get(id) !== undefined;
+}
+
+export function upsertRule(db: Database, merchantKey: string, categoryId: number): void {
+  db.prepare(
+    `INSERT INTO rules (merchant_key, category_id, created_at) VALUES (?, ?, ?)
+     ON CONFLICT(merchant_key) DO UPDATE SET category_id = excluded.category_id`,
+  ).run(merchantKey, categoryId, new Date().toISOString());
+}
+
+export function createImportBatch(
+  db: Database,
+  b: { accountId: number; fileName: string; rowsTotal: number; rowsImported: number; rowsDuplicate: number },
+): number {
+  const info = db
+    .prepare(
+      `INSERT INTO import_batches (account_id, file_name, imported_at, rows_total, rows_imported, rows_duplicate, rows_failed)
+       VALUES (?, ?, ?, ?, ?, ?, 0)`,
+    )
+    .run(b.accountId, b.fileName, new Date().toISOString(), b.rowsTotal, b.rowsImported, b.rowsDuplicate);
+  return Number(info.lastInsertRowid);
 }

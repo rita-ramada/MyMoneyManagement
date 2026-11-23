@@ -3,6 +3,7 @@ import type { Database } from 'better-sqlite3';
 import express from 'express';
 import type { AiCategorizer } from './categorize/ai';
 import { adminRouter } from './routes/admin';
+import { importRouter } from './routes/import';
 import { setupRouter } from './routes/setup';
 
 export interface AppDeps {
@@ -21,6 +22,7 @@ export function createApp(deps: AppDeps): express.Express {
 
   app.use('/api', setupRouter(deps.db));
   app.use('/api', adminRouter(deps.db, deps.ai !== null));
+  app.use('/api', importRouter(deps.db, deps.ai));
 
   if (deps.clientDistDir) {
     const dist = deps.clientDistDir;

@@ -45,18 +45,44 @@ describe('scrubForAi', () => {
     expect(out).toBe('TRF RENDA');
   });
 
+  it.each([
+    ['MB WAY 912-345-678', 'MB WAY'],
+    ['MB WAY 912.345.678', 'MB WAY'],
+    ['PAG NIF 123-456-789 FINANCAS', 'PAG NIF FINANCAS'],
+    ['PAG NIF 123.456.789 FINANCAS', 'PAG NIF FINANCAS'],
+    ['PAG SERV REF 123/456/789', 'PAG SERV REF'],
+    ['PAG SERV ENT 21 312 REF 12-345-678-9', 'PAG SERV ENT REF'],
+    ['MB WAY 912 345 678', 'MB WAY'],
+    ['MB WAY 912\t345\t678', 'MB WAY'],
+    ['TRF PT50.0002.0123.1234.5678.9015.4 RENDA', 'TRF RENDA'],
+    ['TRF PT50-0002-0123-1234-5678-9015-4 RENDA', 'TRF RENDA'],
+  ])('separator variants: %s', (input, expected) => {
+    expect(scrubForAi(input)).toBe(expected);
+  });
+
+  it('keeps non-IBAN tokens like AB12 CAFE LOJA', () => {
+    expect(scrubForAi('COMPRA AB12 CAFE LOJA LISBOA')).toBe('COMPRA AB12 CAFE LOJA LISBOA');
+    expect(scrubForAi('UBER EATS LX12 PORT ALEG')).toBe('UBER EATS LX12 PORT ALEG');
+    expect(scrubForAi('COMPRA ab12 cafe loja')).toBe('COMPRA ab12 cafe loja');
+  });
+
   it('never leaves a 4+ digit run (seeded property test)', () => {
     let seed = 123456789;
     const rnd = () => {
       seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
       return seed / 2 ** 32;
     };
-    const alphabet = '0123456789 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij';
+    const alphabet = '0123456789 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij -./ \t';
     for (let i = 0; i < 200; i++) {
       const len = 1 + Math.floor(rnd() * 60);
       let s = '';
       for (let j = 0; j < len; j++) s += alphabet[Math.floor(rnd() * alphabet.length)];
-      expect(scrubForAi(s)).not.toMatch(/\d{4,}/);
+      const out = scrubForAi(s);
+      expect(out).not.toMatch(/\d{4,}/);
+      // also no digit group that is 4+ digits once single separators are ignored
+      for (const g of out.match(/\d(?:[^A-Za-z0-9]?\d)*/g) ?? []) {
+        expect(g.replace(/\D/g, '').length).toBeLessThan(4);
+      }
     }
   });
 });

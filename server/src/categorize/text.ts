@@ -21,10 +21,13 @@ export function merchantKey(description: string): string {
 
 export function scrubForAi(description: string): string {
   const s = description
+    .replace(/\s+/g, ' ') // normalize NBSP/tabs first so later patterns see plain spaces
     .replace(/[^\s@]+@[^\s@]+/g, ' ') // emails
-    .replace(/\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){2,7}(?:[ ]?[A-Z0-9]{1,4})?\b/gi, ' ') // spaced IBAN
+    // separated IBAN: each group after the first must contain a digit, so words survive
+    .replace(/\b[A-Z]{2}\d{2}(?:[ .\/-]?(?=[A-Z]*\d)[A-Z0-9]{4}){2,7}(?:[ .\/-]?\d{1,4})?\b/gi, ' ')
     .replace(/\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b/gi, ' ') // compact IBAN
-    .replace(/\+?\d[\d ]{7,}\d/g, ' ') // phone-like
+    // phone/NIF/reference-like: 4+ digits joined by short non-alphanumeric separators
+    .replace(/\+?\d(?:[^A-Za-z0-9]{0,2}\d){3,}/g, ' ')
     .replace(/\b(?:X{4}[ -]*)+/gi, ' ') // card masks
     .replace(/\*+\d*/g, ' ')
     .replace(/\d{4,}/g, ' ');

@@ -53,7 +53,13 @@ export function parseCsv(text: string, profile: Profile): { rows: ParsedRow[]; e
     } else {
       const debit = parseAmountToCents(cell(profile.debitCol), profile.decimalSeparator);
       const credit = parseAmountToCents(cell(profile.creditCol), profile.decimalSeparator);
-      amount = debit !== null ? -Math.abs(debit) : credit !== null ? Math.abs(credit) : null;
+      const d = debit ? Math.abs(debit) : 0;
+      const c = credit ? Math.abs(credit) : 0;
+      if (d && c) {
+        errors.push({ line, raw, reason: 'Ambiguous amount: both debit and credit are non-zero' });
+        continue;
+      }
+      amount = d ? -d : c ? c : null;
     }
     if (amount === null) {
       errors.push({ line, raw, reason: 'Invalid or missing amount' });

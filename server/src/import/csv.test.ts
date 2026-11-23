@@ -35,6 +35,16 @@ describe('parseCsv', () => {
     expect(errors[0].reason).toMatch(/amount/i);
   });
 
+  it('treats zero in the unused debit/credit column as absent', () => {
+    const t = 'h\n02/11/2026;x;0,00;500,00\n';
+    const t2 = 'h\n02/11/2026;x;12,30;0,00\n02/11/2026;x;0,00;0,00\n02/11/2026;x;1,00;2,00\n';
+    expect(parseCsv(t, { ...dc, skipRows: 0 }).rows[0].amountCents).toBe(50000);
+    const r = parseCsv(t2, { ...dc, skipRows: 0 });
+    expect(r.rows.map((x) => x.amountCents)).toEqual([-1230]);
+    expect(r.errors).toHaveLength(2);
+    expect(r.errors.every((e) => /amount/i.test(e.reason))).toBe(true);
+  });
+
   it('invertSign flips every amount', () => {
     const a = parseCsv(fixture('sample-pt.csv'), single).rows;
     const b = parseCsv(fixture('sample-pt.csv'), { ...single, invertSign: true }).rows;

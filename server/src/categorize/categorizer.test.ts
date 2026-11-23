@@ -110,4 +110,36 @@ describe('categorizeRows', () => {
     expect(b.aiNotice).toMatch(/AI is off/);
     expect(calls).toHaveLength(0);
   });
+
+  describe('empty merchant keys', () => {
+    const empties = ['COMPRA 4521 XXXX 1234 12/11', '123456789', 'TPA *1234', 'PAG SERV 12345 REF 998877'];
+
+    it('never matches a rule with an empty key', async () => {
+      const rules = new Map([['', 2]]);
+      for (const description of empties) expect(merchantKey(description)).toBe('');
+      const rows = empties.map((d, i) => ({ key: `r${i}`, description: d, amountCents: -100 }));
+      const { results } = await categorizeRows(rows, { ...base, rules, ai: null });
+      for (const r of rows) expect(results.get(r.key)).toEqual(none);
+    });
+
+    it('sends letter-bearing empty-key rows as separate items with their own answers', async () => {
+      const answers: Record<string, string> = { 'COMPRA': 'Streaming', 'PAG SERV REF': 'Groceries' };
+      const { ai, calls } = fakeAi((i) => answers[i.description] ?? null);
+      const rows = [
+        { key: 'a', description: 'COMPRA 4521 XXXX 1234 12/11', amountCents: -100 },
+        { key: 'b', description: 'PAG SERV 12345 REF 998877', amountCents: -200 },
+      ];
+      const { results } = await categorizeRows(rows, { ...base, ai });
+      expect(calls[0]).toHaveLength(2);
+      expect(results.get('a')).toEqual({ categoryId: 1, source: 'ai' });
+      expect(results.get('b')).toEqual({ categoryId: 2, source: 'ai' });
+    });
+
+    it('does not send digits-only rows to the AI', async () => {
+      const { ai, calls } = fakeAi();
+      const { results } = await categorizeRows([{ key: 'r', description: '123456789', amountCents: -100 }], { ...base, ai });
+      expect(calls).toHaveLength(0);
+      expect(results.get('r')).toEqual(none);
+    });
+  });
 });

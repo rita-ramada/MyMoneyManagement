@@ -24,16 +24,21 @@ export async function categorizeRows(
 
   for (const row of rows) {
     const mk = merchantKey(row.description);
-    const ruleCat = deps.rules.get(mk);
+    const ruleCat = mk === '' ? undefined : deps.rules.get(mk);
     if (ruleCat !== undefined) {
       results.set(row.key, { categoryId: ruleCat, source: 'rule' });
     } else if (isTransferLike(row.description, deps.transferPatterns)) {
       results.set(row.key, { ...none });
     } else {
       results.set(row.key, { ...none });
-      const group = pending.get(mk);
-      if (group) group.push(row);
-      else pending.set(mk, [row]);
+      if (mk === '') {
+        // No merchant identity: never group; skip the AI when nothing but digits/symbols remains.
+        if (/\p{L}/u.test(scrubForAi(row.description))) pending.set(`row:${row.key}`, [row]);
+      } else {
+        const group = pending.get(mk);
+        if (group) group.push(row);
+        else pending.set(mk, [row]);
+      }
     }
   }
 
